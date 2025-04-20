@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live IP Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #0F172A; color: #E5E7EB; }
+        input, button { padding: 10px; margin: 10px; }
+        table { margin: auto; border-collapse: collapse; width: 80%; }
+        th, td { padding: 10px; border: 1px solid #6EE7B7; }
+    </style>
+</head>
+<body>
+    <h2>Live IP Tracker 🌍</h2>
+    <input type="text" id="ipInput" placeholder="Enter IP Address" />
+    <button onclick="sendIP()">Track IP</button>
+    <table>
+        <thead>
+            <tr>
+                <th>IP</th> <th>City</th> <th>Country</th> <th>ISP</th> <th>Timezone</th>
+            </tr>
+        </thead>
+        <tbody id="ipTable"></tbody>
+    </table>
+
+    <script>
+        let socket = new WebSocket("ws://localhost:8000/ws");  // الاتصال بالخادم
+
+        function sendIP() {
+            let ip = document.getElementById("ipInput").value;
+            socket.send(ip);
+        }
+
+        socket.onmessage = function(event) {
+            let data = JSON.parse(event.data);
+            let row = `<tr><td>${data.ip}</td><td>${data.city}</td><td>${data.country}</td><td>${data.isp}</td><td>${data.timezone}</td></tr>`;
+            document.getElementById("ipTable").innerHTML += row;
+        };
+    </script>
+</body>
+</html>

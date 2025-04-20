@@ -1,0 +1,124 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IP Geolocation Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <style>
+        body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #0F172A; color: #E5E7EB; }
+        #map { height: 600px; margin: 20px 0; border-radius: 8px; }
+        .ip-form { margin: 20px 0; }
+        input[type="text"] { padding: 8px; width: 300px; border: 1px solid #374151; border-radius: 4px; }
+        button { padding: 8px 16px; background: #6EE7B7; border: none; border-radius: 4px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #374151; }
+        th { background: #1E293B; }
+        tr:hover { background: #4B5563; }
+        .leaflet-popup-content { min-width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>IP Geolocation Dashboard</h1>
+    
+    <div class="ip-form">
+        <input type="text" id="ipInput" placeholder="Enter IP address">
+        <button onclick="processIP()">Lookup</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <h2>Geolocation History</h2>
+    <table id="resultsTable">
+        <thead>
+            <tr>
+                <th>IP</th>
+                <th>Location</th>
+                <th>ISP</th>
+                <th>Coordinates</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQC5T5WhprO+F2T65Zn0z4k4FfQ7xz0="
+            crossorigin=""></script>
+    <script>
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        let markers = [];
+
+        function updateMap(data) {
+            // Clear existing markers
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            data.forEach(item => {
+                if (item.lat && item.lon) {
+                    const marker = L.marker([item.lat, item.lon])
+                        .bindPopup(`
+                            <b>${item.ip}</b><br>
+                            ${item.city}, ${item.region}<br>
+                            ${item.country} (${item.country_code})<br>
+                            ISP: ${item.isp}
+                        `)
+                        .addTo(map);
+                    markers.push(marker);
+                }
+            });
+        }
+
+        function updateTable(data) {
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.ip}</td>
+                    <td>${item.city || 'N/A'}, ${item.region || 'N/A'}</td>
+                    <td>${item.isp}</td>
+                    <td>${item.lat ? `${item.lat.toFixed(4)}, ${item.lon.toFixed(4)}` : 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function processIP() {
+            const ip = document.getElementById('ipInput').value.trim();
+            if (!ip) return;
+
+            fetch('/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `ip=${encodeURIComponent(ip)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // Update UI components
+                    fetchData();
+                }
+            });
+        }
+
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    updateMap(data);
+                    updateTable(data);
+                });
+        }
+
+        // Initial data load and periodic refresh
+        fetchData();
+        setInterval(fetchData, 5000);
+    </script>
+</body>
+</html>
